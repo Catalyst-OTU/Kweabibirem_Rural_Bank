@@ -1,0 +1,169 @@
+/* globals headscriptsvars */
+/* eslint-disable */
+
+jQuery( document ).ready( function ( $ ) {
+
+	var target = null,
+		tabs = $( '.tab' ).on( 'click', function () {
+
+			target = $( this.hash ).removeAttr( 'id' );
+
+			if ( location.hash === this.hash ) {
+				setTimeout( update );
+			}
+		} ).attr( 'tabindex', '0' );
+
+	var targets = tabs.map( function () {
+		return this.hash;
+	} ).get();
+
+	var panels = $( targets.join( ',' ) ).each( function () {
+		$( this ).data( 'old-id', this.id );
+	} );
+
+	function update() {
+		if ( target ) {
+			target.attr( 'id', target.data( 'old-id' ) );
+			target = null;
+		}
+
+		var hash = window.location.hash;
+		if ( targets.indexOf( hash ) !== -1 ) {
+			return show( hash );
+		}
+
+		if ( ! hash ) {
+			show();
+		}
+	}
+
+	/*
+	 * Contact page - Office tabs
+	 */
+	setTimeout( function () {
+		$( '.sc-tabs-list' ).each( function ( index, tabslist ) {
+			if ( ! $( '> .sc-tab > .tab.selected', tabslist ).length && $( '> .sc-tab > .tab', tabslist ).length ) {
+				show( $( '> .sc-tab > .tab:first', tabslist ).attr( 'href' ) );
+			}
+		} );
+	}, 1000 );
+
+	function show( id ) {
+		
+		if ( $( '.headers-hub.headers-tabs a[href="' + id + '"]' ).length ) {
+			// If header overrides exist, switch to them or revert back
+			
+			if ( $( '.headers-tab-wrapper .header-tabs-inner-subtab[data-tabid="' + id + '"]' ).length || $( '.headers-tab-wrapper .headers-tabs-video-subtab[data-tabid="' + id + '"]' ).length ) {
+				$( '.headers-tab-wrapper .headers-tabs-inner.header-tabs-inner-subtab:visible').fadeOut();
+				$( '.headers-tab-wrapper .headers-tabs-inner.header-tabs-inner-subtab[data-tabid="' + id + '"]' ).fadeIn();
+
+				$( '.headers-tab-wrapper .headers-tabs-video-subtab:visible').fadeOut();
+				$( '.headers-tab-wrapper .headers-tabs-video-subtab[data-tabid="' + id + '"]' ).fadeIn();
+			} else {
+				$( '.headers-tab-wrapper .headers-tabs-inner.header-tabs-inner-subtab:visible' ).fadeOut();
+				$( '.headers-tab-wrapper .headers-tabs-video-subtab:visible' ).fadeOut();
+			}
+			
+			if ($( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab[data-tabid="' + id + '"]' ).length ) {
+				if (window.innerWidth > 799) {
+					$( '.headers-tab-wrapper .header-callout-block:not(.header-callout-block-subtab)' ).fadeOut();
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab:visible' ).fadeOut();
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab[data-tabid="' + id + '"]' ).fadeIn();
+				} else {
+					$( '.headers-tab-wrapper .header-callout-block:not(.header-callout-block-subtab)' ).hide();
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab:visible' ).hide();
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab[data-tabid="' + id + '"]' ).show();
+				}
+			} else {
+				if (window.innerWidth > 799) {
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab:visible' ).fadeOut();
+					$( '.headers-tab-wrapper .header-callout-block:not(.header-callout-block-subtab)' ).fadeIn();
+				} else {
+					$( '.headers-tab-wrapper .header-callout-block.header-callout-block-subtab:visible' ).hide();
+					$( '.headers-tab-wrapper .header-callout-block:not(.header-callout-block-subtab)' ).show();
+				}
+			}
+			
+		}
+
+		if ( ! id ) {
+			id = targets[0];
+		}
+
+		var siblingTabsPrev = tabs.filter( function () {
+			return ( this.hash === id );
+		} ).parent().prevAll();
+
+		var siblingTabsNext = tabs.filter( function () {
+			return ( this.hash === id );
+		} ).parent().nextAll();
+
+		$( '> .tab', siblingTabsPrev ).removeClass( 'selected' ).attr( 'aria-selected', 'false' );
+
+		$( '> .tab', siblingTabsNext ).removeClass( 'selected' ).attr( 'aria-selected', 'false' );
+
+		tabs.filter( function () {
+			return ( this.hash === id );
+		} ).addClass( 'selected' ).attr( 'aria-selected', 'true' );
+
+		var siblingPanelsPrev = panels.filter( id ).prevAll();
+		var siblingPanelsNext = panels.filter( id ).nextAll();
+
+		$( siblingPanelsPrev ).hide().attr( 'aria-hidden', 'true' );
+
+		$( siblingPanelsNext ).hide().attr( 'aria-hidden', 'true' );
+
+		panels.filter( id ).show().attr( 'aria-hidden', 'false' );
+
+		if ( tabs.filter( function () {
+			return ( this.hash === id );
+		} ).parents( '.tab-wrap' ).length &&
+			! $( '.sc-tabs-list > .sc-tab > a.tab[href="#' + tabs.filter( function () {
+				return ( this.hash === id );
+			} ).closest( '.tab-wrap > .panel' ).attr( 'id' ) + '"]' ).hasClass( 'selected' ) ) {
+			show( '#' + tabs.filter( function () {
+				return ( this.hash === id );
+			} ).closest( '.tab-wrap > .panel' ).attr( 'id' ) );
+		}
+	}
+
+	// Global function to call tabs
+	window.showtab = function( id ) {
+		show( id );
+	};
+
+	window.addEventListener( 'hashchange', update );
+
+	// initialise
+	if ( targets.indexOf( window.location.hash ) !== -1 ) {
+		update();
+	} else {
+		show();
+	}
+
+} );
+
+window.addEventListener( 'load', function () {
+	window.cookieconsent.initialise( {
+		'palette': {
+			'popup': {
+				'background': '#18212a',
+				'text':       '#ffffff',
+			},
+			'button': {
+				'background': '#00a546',
+				'text':       '#ffffff',
+			},
+		},
+		'content': {
+			'message': ( headscriptsvars.message ),
+			'dismiss': ( headscriptsvars.dismiss ),
+			'link':    ( headscriptsvars.link ),
+			'href':    ( headscriptsvars.href ),
+		},
+	} );
+
+	// Issue #1245 - Remove 'cc-floating' class & add 'cc-banner' to cookies message on handheld devices
+	jQuery( '.cc-window' ).removeClass( 'cc-floating' ).addClass( 'cc-banner' );
+
+} );

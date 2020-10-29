@@ -1,0 +1,1059 @@
+var aoPostLoadFormCallback = aoPostLoadFormCallback || {};
+var aoPostSubmitFormCallback = aoPostSubmitFormCallback || {};
+
+var _aoFormLoader = (function(w){
+
+	var stylesLoaded = false;
+	var captchaLoaded = false;
+	var gfLoaded = false;
+	var htmlId = false;
+	var formsLoadedCount = 0;
+	var formsCount = 0;
+
+  var scheme = document.location.protocol + "//";
+
+  function populateDateField(inputElem, value) {
+    if(!value || !inputElem) {
+      return;
+    }
+
+    var dateWrapper = inputElem.parentElement;
+    var dateElements = dateWrapper.querySelectorAll('input.ao-form-field-date');
+  	var amPm;
+  	
+    if (value.indexOf("AM")) {
+    	value = value.replace("AM", "");
+    	amPm = "AM";
+	} else if (value.indexOf("PM")) {
+		value = value.replace("PM", "");
+		amPm = "PM";
+	}
+    var dateFormat = value.split(/[:\/\s]+/);
+
+    // Populate all date input fields
+    dateElements.forEach(function(elem, index) {
+      elem.value = dateFormat[index] || '';
+    });
+
+    // Populate AM/PM dropdown
+    if(amPm && dateWrapper.querySelector("option[value='" + amPm + "']")) {
+      dateWrapper.querySelector("option[value='" + amPm + "']").selected = true;
+    }
+  }
+
+	var loadForm = function(options){
+
+	    formsCount += 1; //increment for each form that is on the page
+		loadStylesheet(options);
+
+		var previewMarkup = '<p style="text-align: center;">Unable to preview form, it has reached the submission cap or expired.</p>';
+		var oReq = new XMLHttpRequest();
+		oReq.onload = function (e) {
+
+			var response;
+
+			if (e.target.responseType === 'json') {
+				response = e.target.response || false;
+			} else {
+				response = (e.target.response) ?  JSON.parse(e.target.response) : false;
+			}
+
+			if(!response){
+				return false;
+			} else if (response && typeof response.processedTemplate === 'undefined' && response.linkURL && response.linkURL != '') {
+				window.location = response.linkURL;
+				return false;
+			}
+
+			var idArr = options.id.split(":");
+
+			htmlId = (options.uniqueId) ? options.id + options.uniqueId : options.id;
+            divId = (options.uniqueId) ? idArr[0] + options.uniqueId : idArr[0];
+
+			var existingDiv = document.getElementById('aoform-' + divId);
+			if(existingDiv)
+				existingDiv.parentNode.removeChild(existingDiv);
+
+			var div = document.createElement('div');
+			var scriptTag = document.getElementById('aoform-script-' + htmlId);
+			div.id = 'aoform-' + divId;
+            div.style.visibility = "hidden";
+			scriptTag.parentNode.insertBefore(div, scriptTag);
+			div.innerHTML = response && response.processedTemplate ? response.processedTemplate : previewMarkup;
+			formsLoadedCount += 1; //increment for when a form is loaded onto the page
+
+            if(response.formProperties && ! response.formProperties.invalidDomain){
+                //Set referrer
+                div.querySelector("input[name='ao_refurl']").value = document.referrer;
+                div.querySelector("input[name='ao_refemail']").value = getParameterByName("aoRefEmail");
+                div.querySelector("input[name='ao_campid']").value = getParameterByName("cmpid");
+                div.querySelector("input[name='ao_gatedpage']").value = getParameterByName("ao_gatedpage");
+                div.querySelector("input[name='ao_gatedasset']").value = getParameterByName("ao_gatedasset");
+
+                var ajaxSubmit = response && response.formProperties && response.formProperties.hasAjaxResponse ? response.formProperties.hasAjaxResponse : false;
+
+                loadCaptcha();
+                updateTabIndexes();
+                loadGoogleFonts();
+
+                formValidationEvents(div, ajaxSubmit);
+
+                // Form Prefill
+                if ( response.prefill && Object.keys( response.prefill ).length > 0 ) {
+                    var fields = Object.keys( response.prefill );
+
+                    fields.forEach( function( field ) {
+                        var input = div.querySelector("input[name='" + field + "']");
+                        var select = div.querySelector("select[name='" + field + "']");
+                        var textarea = div.querySelector("textarea[name='" + field + "']");
+
+                        if ( ! input && ! select && ! textarea ) {
+                            return;
+                        }
+
+                        if(input){
+                            if(input.type== "radio"){
+                                var radios = div.querySelectorAll("input[name='" + field + "']");
+                                for(var i = 0; i<radios.length; i++){
+                                    if(radios[i].value == response.prefill[field]){
+                                        radios[i].checked = true;
+                                    }
+                                }
+                            } else if(input.type== "checkbox") {
+                                if ( ! response.prefill[field] ) { return true; }
+                                var checkboxes = div.querySelectorAll("input[name='" + field + "']");
+                                var values = response.prefill[field].split(/[;,\^]/);
+
+                                for(var i = 0; i<checkboxes.length; i++){
+                                    for(var j = 0; j<values.length; j++) {
+                                        if (checkboxes[i].value == values[j]) {
+                                            checkboxes[i].checked = true;
+                                        }
+                                    }
+                                }
+                            } else if (input.type=="text"){
+                                div.querySelector("input[name='" + field + "']").value = response.prefill[field];
+                            } else if (input.type === 'hidden' && input.className === 'ao-form-field-date-input') {
+                              populateDateField(input, response.prefill[field]);
+                            }
+                        } else if(textarea) {
+                            div.querySelector("textarea[name='" + field + "']").value = response.prefill[field];
+                        } else if(select){
+                            for (var i = 0; i < select.options.length; i++) {
+                                if (select.options[i].text == response.prefill[field]) {
+                                    select.options[i].selected = true;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // init the rule listeners here
+                if ( response.formProperties && response.formProperties.hasRules === true ) {
+                    loadRules( options.accountId, options.id, response.watchFields, options, div);
+                } else {
+                    div.style.visibility = "visible";
+				}
+
+                //Post Load Callback (universal)
+                if (typeof aoPostLoadCallback === 'function') {
+                    aoPostLoadCallback();
+                }
+
+                //Post Load Callback (form specific)
+                if(aoPostLoadFormCallback[divId] && typeof aoPostLoadFormCallback[divId] === 'function'){
+                    aoPostLoadFormCallback[divId]();
+                }
+
+                //Post Load Callback
+                if (typeof aoPostLoadCallbackInternal === 'function') {
+                    aoPostLoadCallbackInternal();
+                }
+			} else {
+                div.style.visibility = "visible";
+			}
+		};
+
+		var url;
+
+		if(options.isTemp) {
+			url = scheme + options.domain + '/acton/internalapi/FormBuilder/' + options.accountId + '/form/temp/' + options.id + '?ts=' + new Date().getTime() + "&noStyle=" + ((options.noStyle) ? "1" : "") + "&prefilledData=" + ((options.prefilledData) ? options.prefilledData : "");
+		} else if(options.recId) {
+            url = scheme + options.domain + '/acton/internalapi/FormBuilder/' + options.accountId + '/form/' + options.id + '?ts=' + new Date().getTime() + "&noStyle=" + ((options.noStyle) ? "1" : "") + "&prefilledData=" + ((options.prefilledData) ? options.prefilledData : "") + "&recId=" + ((options.recId) ? options.recId : "");
+        } else {
+			url = scheme + options.domain + "/acton/openapi/form/v1/" + options.accountId + "/" + options.id + '?ts=' + new Date().getTime() + (options.noStyle ? "&noStyle=1" : "" ) + (options.prefill ? "&prefill=1" : "");
+		}
+
+        var gated_asset = getParameterByName("ao_gatedasset");
+    url += gated_asset ? "&ga=" + gated_asset : '';
+
+		oReq.open('GET', url, true);
+		oReq.responseType = 'json';
+        oReq.withCredentials = true;
+		oReq.send();
+	};
+
+	var loadStylesheet = function(options){
+		if(! stylesLoaded){
+			var styleTag = document.createElement("link");
+			styleTag.rel = "stylesheet";
+			styleTag.type = "text/css";
+			styleTag.href =  scheme + options.domain + "/acton/content/form_flattener.css";
+			styleTag.media = "all";
+			document.getElementsByTagName('head')[0].appendChild(styleTag);
+			stylesLoaded = true;
+		}
+	};
+
+	var loadCaptcha = function(){
+
+		if(! captchaLoaded && (formsCount == formsLoadedCount)){ //Don't load captcha until all forms that exist on page are loaded
+			var scriptTag = document.createElement("script");
+
+			scriptTag.src = "https://www.google.com/recaptcha/api.js";
+			scriptTag.defer = true;
+            scriptTag.async = true;
+
+			document.getElementsByTagName('head')[0].appendChild(scriptTag);
+			captchaLoaded = true;
+
+
+		}
+	};
+
+	var updateTabIndexes = function(){
+	    //If multiple forms on one page, update each new form with higher tab index (100+) than previous form)
+        if(formsCount == formsLoadedCount && formsLoadedCount > 1) {
+            var actonForms = document.querySelectorAll("form.ao-form");
+
+            var startingTabIndex = 100;
+            for(var i = 1; i<actonForms.length; i++){
+                var inputFields = actonForms[i].querySelectorAll('[tabindex]');
+                for(var j=0; j<inputFields.length; j++){
+                    inputFields[j].tabIndex = inputFields[j].tabIndex + startingTabIndex;
+                }
+                startingTabIndex = startingTabIndex + 100;
+            }
+        }
+    };
+
+    var loadGoogleFonts = function(){
+
+        if(! gfLoaded){
+            var scriptTag = document.createElement("script");
+
+            scriptTag.src = "https://ajax.googleapis.com/ajax/libs/webfont/1.5.18/webfont.js";
+            scriptTag.defer = true;
+            scriptTag.async = true;
+
+            document.getElementsByTagName('head')[0].appendChild(scriptTag);
+            gfLoaded = true;
+        }
+    };
+
+	var evalFacts = function( accountId, formId, watchFields, options, containerDiv) {
+
+		var fact = {
+			data : {}
+		};
+
+		watchFields.forEach( function ( field ) {
+			var fieldElm = document.getElementById(field);
+
+			if(fieldElm){
+                if(fieldElm.nodeName == "DIV" && fieldElm.classList.contains("ao-combo-layout")){
+                    var radios = fieldElm.querySelectorAll("input[type='radio'],input[type='checkbox']");
+                    fact.data[field] = "";
+
+                    for(var i = 0; i < radios.length; i++) {
+                        if(radios[i].checked){
+                            fact.data[field] += radios[i].value;
+                        }
+                    }
+                } else {
+                    fact.data[field] = fieldElm.value;
+                }
+            }
+		});
+
+		if ( formId.indexOf(':') > -1 ) {
+			formId = formId.substr( 0, formId.indexOf(':') )
+		}
+
+		var body = {
+			payload : {
+				accountId : accountId,
+                key : formId,
+                facts : [fact]
+            }
+		};
+
+		var xhr = new XMLHttpRequest();
+		xhr.open( 'PUT', scheme + options.domain + '/acton/openapi/form/v1/' + options.accountId + '/' + formId + '/factEval' );
+        xhr.setRequestHeader( 'Content-Type', 'application/json' );
+        xhr.send( JSON.stringify( body ) );
+
+        xhr.onreadystatechange = function() {
+			if ( xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200 ) {
+				var response = JSON.parse(xhr.response);
+
+				//Go through the non true results first and set base display
+				for(var i=0; i<response.results[0].result.length; i++) {
+
+                    var result = response.results[0].result[i].result;
+                    var ruleName = response.results[0].result[i].name;
+                    var consequence = response.rules[ruleName].consequences;
+
+                    if (!result) {
+                        for (var j = 0; j < consequence.length; j++) {
+
+                            var state = consequence[j].state;
+                            var field = consequence[j].field;
+                            var elm = document.getElementById("block-" + field) || document.getElementById("row-" + field);
+
+                            if(elm){
+                                switch (state) {
+
+                                    case "show":
+                                        elm.style.display = "none";
+                                        formElms = elm.querySelectorAll("input, select, textarea");
+                                        for(var k=0; k<formElms.length; k++) {
+                                            formElms[k].disabled = true;
+                                        }
+                                        elm.classList.add("ao-condition-hide");
+                                        break;
+
+                                    case "hide":
+                                        elm.style.removeProperty("display");
+                                        formElms = elm.querySelectorAll("input, select, textarea");
+                                        for(var l=0; l<formElms.length; l++) {
+                                            formElms[l].disabled = false;
+                                        }
+                                        elm.classList.remove("ao-condition-hide");
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //Show form on initial load after fields have been hidden
+                if(containerDiv){
+                    containerDiv.style.visibility = "visible";
+                }
+
+                //Now go through the true results first and set correct display
+                for(var i=0; i<response.results[0].result.length; i++) {
+
+                    var result = response.results[0].result[i].result;
+                    var ruleName = response.results[0].result[i].name;
+                    var consequence = response.rules[ruleName].consequences;
+
+                    if (result) {
+                        for (var j = 0; j < consequence.length; j++) {
+
+                            var state = consequence[j].state;
+                            var field = consequence[j].field;
+                            var elm = document.getElementById("block-" + field) || document.getElementById("row-" + field);
+
+                            if(elm) {
+                                switch (state) {
+
+                                    case "show":
+                                        elm.style.removeProperty("display");
+
+                                        formElms = elm.querySelectorAll("input, select, textarea");
+                                        for(var k=0; k<formElms.length; k++) {
+                                            formElms[k].disabled = false;
+                                        }
+                                        elm.classList.remove("ao-condition-hide");
+                                        break;
+
+                                    case "hide":
+                                        elm.style.display = "none";
+                                        formElms = elm.querySelectorAll("input, select, textarea");
+                                        for(var l=0; l<formElms.length; l++) {
+                                            formElms[l].disabled = true;
+                                        }
+                                        elm.classList.add("ao-condition-hide");
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+			} else {
+				// an error occurred
+			}
+		}
+	};
+
+	var loadRules = function( accountId, formId, watchFields, options, containerDiv) {
+		if ( !watchFields ){
+            //Show form on initial load
+            containerDiv.style.visibility = "visible";
+            return;
+		}
+
+		//Remove duplicate watches
+        var watchFieldsSeen = {};
+        var watchFieldsUnique = watchFields.filter(function(item) {
+            return watchFieldsSeen.hasOwnProperty(item) ? false : (watchFieldsSeen[item] = true);
+        });
+
+        watchFieldsUnique.forEach( function ( field ) {
+			var el = document.getElementById( field );
+
+			if(el){
+                if(el.nodeName == "SELECT"){
+                    el.addEventListener( 'change', function ( event ) {
+                        // put a debounce in here so we're making requests on every keystroke
+						var result = evalFacts( accountId, formId, watchFieldsUnique, options );
+                    }, false );
+                } else if(el.nodeName == "DIV" && el.classList.contains("ao-combo-layout")){
+                    var inputs = el.querySelectorAll("input");
+
+                    for (i = 0; i < inputs.length; i++) {
+                        inputs[i].addEventListener( 'click', function ( event ) {
+                            // put a debounce in here so we're making requests on every keystroke
+                            if(el.classList.contains("ao-form-error")){
+                                el.classList.remove("ao-form-error");
+                                }
+                                var result = evalFacts( accountId, formId, watchFieldsUnique, options );
+                        }, false );
+                    }
+                } else {
+                    el.addEventListener( 'keyup', debounce(function () {
+                        evalFacts( accountId, formId, watchFieldsUnique, options );
+                    }, 500), false);
+                }
+			}
+		});
+
+        //Initial Load
+        evalFacts( accountId, formId, watchFieldsUnique, options, containerDiv);
+	};
+
+    function getParameterByName(name) {
+    	url = window.location.href;
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)", "i"),
+            results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+
+	var formValidationEvents = function(form, ajaxSubmit){
+		var actonForms = form.querySelectorAll("form.ao-form");
+
+		var findRecaptchaElements = function(form, hasError){
+			//Find the recaptcha wrapper
+			var recaptchaWrapper = form.querySelectorAll(".ao-recaptcha-error-wrapper");
+			if (recaptchaWrapper.length > 0) {
+				if (hasError) {
+					//If found and has error then apply the style that will show the red border around the element
+					recaptchaWrapper[0].classList.add("ao-recaptcha-error");
+				} else {
+					//Remove the style because the user has attempted to work with the recaptcha again
+					recaptchaWrapper[0].classList.remove("ao-recaptcha-error");
+				}
+			}
+
+			//Find the element that will show the failed to completed the recaptcha
+			var recaptchaMsg = form.querySelectorAll(".ao-recaptcha-error-robot-message");
+			if (recaptchaMsg.length > 0) {
+				if (hasError) {
+					//Show the text
+					recaptchaMsg[0].style.display = "block";
+				} else {
+					//Hide the text
+					recaptchaMsg[0].style.display = "none";
+				}
+			}
+		};
+
+		var invalidCaptcha = function(form){
+            //Wait for the Recaptcha widget before we build the error logging aorund it
+            setTimeout(function () {
+
+                //Apply the styling that says the user failed to validate the Recaptcha
+                findRecaptchaElements(form, true);
+
+            }, 1000);
+
+            //Keep checking if the user has attempted to validate the Recaptcha, we will know because the token will go into the hidden input the cap sends on submission
+            var recaptchaInterval = setInterval(function () {
+                var recaptchaBoxCode = form.querySelectorAll("#g-recaptcha-response");
+
+                //If we find the element and the value is not empty then a user has interacted with the cap, validation happens on the submission not now
+                if (recaptchaBoxCode.length > 0 && recaptchaBoxCode[0].value !== '') {
+
+                    //Remove the styling that was generated by the error
+                    findRecaptchaElements(form, false);
+
+                    //Remove the interval that listens for the check
+                    window.clearInterval(recaptchaInterval);
+                }
+            }, 2000);
+		};
+
+		for(var i=0; i<actonForms.length; i++) {
+
+			//Set On Blur Events For All Inputs
+			var validationFields = actonForms[i].querySelectorAll(".ao-form-field[data-validator]:not([data-attached])");
+			var validationCombos = actonForms[i].querySelectorAll(".ao-combo-layout[data-validator]:not([data-attached])");
+			var validationDates =  actonForms[i].querySelectorAll(".ao-form-field-date-wrapper[data-validator]:not([data-attached])");
+            var validationDateFields =  actonForms[i].querySelectorAll(".ao-form-field-date");
+            var dynamicHiddenFields =  actonForms[i].querySelectorAll(".ao-hidden-block-dynamic");
+            var submitBlock = actonForms[i].querySelectorAll(".ao-submit-block");
+
+            //Set All dynamic fields on load.  Will set again on submit.
+            for (var j = 0; j < dynamicHiddenFields.length; j++) {
+                var fieldMatch = dynamicHiddenFields[j].getAttribute("data-dynamic-match");
+                var fieldDefault = dynamicHiddenFields[j].getAttribute("data-dynamic-default");
+                dynamicHiddenFields[j].value = getParameterByName(fieldMatch) || fieldDefault;
+            }
+
+            for (var j = 0; j < validationDateFields.length; j++) {
+                var currentField = validationDateFields[j];
+
+                (function(currentField) {
+                    currentField.addEventListener( "keyup", function(){
+                        var e = event || evt; // for trans-browser compatibility
+                        var charCode = e.which || e.keyCode; // for trans-browser compatibility
+
+						if(charCode != 9 && charCode != 16 && this.value.length >= this.getAttribute('maxlength') ){
+                            var node = this.nextSibling;
+                            while (node) {
+                                if (node.tagName=='INPUT') {
+                                    node.focus();
+                                    break;
+                                }
+                                node = node.nextSibling;
+                            }
+						}
+                    })
+                })(currentField);
+            }
+
+			//check if the form id matches the param sent back on the user submission redirect of the formid that failed user submit
+			if(htmlId.indexOf(getParameterByName("validRecaptcha")) > -1) {
+				invalidCaptcha(form);
+			}
+
+			if(actonForms[i].hasAttribute('data-validate-blur')){
+
+				for (var j = 0; j < validationFields.length; j++) {
+					var currentField = validationFields[j];
+
+					(function(currentField) {
+						currentField.addEventListener( "keyup", debounce(function(){
+							validateField(currentField);
+						}, 500));
+                        currentField.addEventListener( "change", function(){
+                            validateField(currentField);
+                        });
+					})(currentField);
+				}
+
+                for (var j = 0; j < validationDates.length; j++) {
+                    if (!!( validationDates[j].offsetWidth || validationDates[j].offsetHeight || validationDates[j].getClientRects().length )) {
+                        var currentField = validationDates[j];
+
+                        (function(currentField) {
+                            currentField.addEventListener( "keyup", debounce(function(){
+                                validateField(currentField, {isDate: true});
+                            }, 500));
+                            currentField.addEventListener( "change", function(){
+                                validateField(currentField, {isDate: true});
+                            });
+                        })(currentField);
+                    }
+                }
+			}
+
+			//Set On Submit Event
+			var currentForm = actonForms[i];
+
+			(function(currentForm, ajaxSubmit) {
+				currentForm.addEventListener("submit", function(e){
+					var passedValidation = true;
+					for (var i = 0; i < validationFields.length; i++) {
+						//Check visibility of field. offsetWidth/Height of null = not visible
+                        if (!!( validationFields[i].offsetWidth || validationFields[i].offsetHeight || validationFields[i].getClientRects().length )){
+                            if (!validateField(validationFields[i])) {
+                                passedValidation = false;
+                            }
+                    	}
+					}
+
+					for (var i = 0; i < validationCombos.length; i++) {
+                        //Check visibility of field. offsetWidth/Height of null = not visible
+                        if (!!( validationCombos[i].offsetWidth || validationCombos[i].offsetHeight || validationCombos[i].getClientRects().length )) {
+                            if (!validateField(validationCombos[i], {isCombo: true})) {
+                                passedValidation = false;
+                            }
+                        }
+					}
+
+					for (var i = 0; i < validationDates.length; i++) {
+                        if (!!( validationDates[i].offsetWidth || validationDates[i].offsetHeight || validationDates[i].getClientRects().length )) {
+                            if (!validateField(validationDates[i], {isDate: true})) {
+                                passedValidation = false;
+                            }
+                        }
+					}
+
+                    for (var i = 0; i < submitBlock.length; i++) {
+                        if (!( submitBlock[i].offsetWidth || submitBlock[i].offsetHeight || submitBlock[i].getClientRects().length )) {
+                            passedValidation = false;
+                        }
+                    }
+
+                    for (var i = 0; i < dynamicHiddenFields.length; i++) {
+						var fieldMatch = dynamicHiddenFields[i].getAttribute("data-dynamic-match");
+                        var fieldDefault = dynamicHiddenFields[i].getAttribute("data-dynamic-default");
+						dynamicHiddenFields[i].value = getParameterByName(fieldMatch) || fieldDefault;
+                    }
+
+					//Set Date fields
+					var dateBlocks = 	currentForm.querySelectorAll(".ao-date-block");
+                    for(var i = 0; i < dateBlocks.length; i++){
+                    	var dateBlock = dateBlocks[i];
+                    	var dateBlockInput = dateBlock.querySelector(".ao-form-field-date-input");
+                    	var dateBlockPartials = dateBlock.querySelectorAll(".ao-form-field-date");
+
+                        var dateVal = "";
+
+                    	for(var j=0; j<dateBlockPartials.length; j++){
+							var partial = dateBlockPartials[j];
+							var format = partial.getAttribute("data-format");
+							var isHour = format === "h" || format === "H";
+
+                            if(format == "MM" || format == "DD" || format == "YY" || format == "YYYY"){
+                            	if(dateVal){
+                            		dateVal = dateVal + "/";
+								}
+                                dateVal += partial.value;
+							}
+
+                            if(isHour || format == "mm"){
+                                if(dateVal && isHour){
+                                    dateVal = dateVal + " ";
+                                }
+
+                                dateVal += partial.value;
+
+                                if(isHour && partial.value){
+                                    dateVal = dateVal + ":";
+                                }
+                            }
+
+                            if(format == "tt"){
+                                if(dateVal){
+                                    dateVal = dateVal + " ";
+                                }
+                                dateVal += partial.value;
+                            }
+						}
+
+						dateBlockInput.value = dateVal;
+					}
+
+					var captcha = currentForm.querySelector('.g-recaptcha-response');
+
+					// if a captcha is being used check it
+					if ( captcha !== null ) {
+						var captchaValue = captcha.value;
+
+						// if the captcha value is empty invalidate the form
+						if ( captchaValue === '' ) {
+							passedValidation = false;
+                            invalidCaptcha( currentForm );
+						}
+					}
+
+					if(! passedValidation || ajaxSubmit){
+                        e.preventDefault();
+					}
+
+                    if(passedValidation)
+                    {
+                        var submitButtons = currentForm.querySelectorAll(".ao-form-submit");
+                        disableSubmitButtons(submitButtons);
+                    }
+
+
+                    if(passedValidation && ajaxSubmit){
+                        var data = new FormData(currentForm);
+
+                        var req = new XMLHttpRequest();
+                        req.onload = function(){
+
+                        	var response;
+
+                            try {
+                                response = JSON.parse(this.response);
+                            } catch(e) {
+                                response = this.response;
+                            }
+
+                        	if(typeof response === 'object' && response.error && response.error == "captcha"){
+                                invalidCaptcha(currentForm);
+							} else {
+								var divId = currentForm.id.replace("ao-form", "aoform");
+                                var formId = currentForm.id.replace("ao-form-", "");
+                                var div = document.getElementById(divId);
+
+                                div.innerHTML = response;
+
+                                //Post Submit Callback
+                                if (typeof aoPostSubmitCallback === 'function') {
+                                    aoPostSubmitCallback();
+                                }
+
+                                //Post Submit Callback (form specific)
+                                formId = ( formId.indexOf(':') > -1 ) ? formId.substr( 0, formId.indexOf(':') ) : formId;
+
+                                if(aoPostSubmitFormCallback[formId] && typeof aoPostSubmitFormCallback[formId] === 'function'){
+                                    aoPostSubmitFormCallback[formId]();
+                                }
+
+                                //Inline gated content URL is only used in the case of iOS devices
+                                var inlineURL = document.getElementById("ao_inline-" + formId);
+
+                                if (inlineURL && isIOS()) {
+                                    window.location = inlineURL.value;
+                                }
+							}
+                        };
+                        req.open(currentForm.method, currentForm.action);
+                        req.withCredentials = true;
+                        req.send(data);
+					}
+			    })
+			})(currentForm, ajaxSubmit);
+		}
+	};
+
+    function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    }
+
+    var disableSubmitButtons = function(submitButtons) {
+        for (var i=0; i < submitButtons.length; i++) {
+            submitButtons[i].disabled = true;
+        }
+    };
+
+	var validateField = function(field, options){
+
+		var o = options ? options : {};
+
+		var validators = field.getAttribute('data-validator').split("|");
+		var errorSpan = field.parentNode.querySelector(".ao-form-error-message");
+		errorSpan.innerHTML = "&nbsp;";
+
+		var errorMessageArr = [];
+		var errorMessageOverrideArr = (field.getAttribute('data-error-message')) ? field.getAttribute('data-error-message').split("::") : false;
+
+		field.classList.remove("ao-form-error");
+
+		for(var i=0; i<errorMessageOverrideArr.length; i++){
+			var errorMessageOverride = errorMessageOverrideArr[i].split("|");
+			errorMessageArr[ errorMessageOverride[0] ] = errorMessageOverride[1];
+		}
+
+
+		for(var j=0; j<validators.length; j++) {
+			var validationType = validators[j];
+			var hasErrors = false;
+
+			switch (validationType) {
+
+				case "required":
+					if (o.isCombo) {
+						var validationComboFields = field.querySelectorAll("input");
+						var hasRequired = false;
+
+						for (var k = 0; k < validationComboFields.length; k++) {
+							if (validationComboFields[k].checked) {
+								hasRequired = true;
+							}
+						}
+
+						if (!hasRequired) {
+							hasErrors = true;
+						}
+					} else if(o.isDate) {
+						var validationDateFields = field.querySelectorAll("input:not(.ao-form-field-date-input), select");
+						var hasRequired = true;
+
+						for (var l = 0; l < validationDateFields.length; l++) {
+							if (! validationDateFields[l].value.trim()) {
+								validationDateFields[l].classList.add("ao-form-error");
+								hasRequired = false;
+							} else {
+								validationDateFields[l].classList.remove("ao-form-error");
+							}
+						}
+
+						if (!hasRequired) {
+							hasErrors = true;
+						}
+					} else if (!field.value.trim()) {
+						hasErrors = true;
+					}
+					break;
+				case "date":
+					if(o.isDate) {
+						var validationDateFields = field.querySelectorAll("input");
+
+						for (var m = 0; m < validationDateFields.length; m++) {
+							var dateType = validationDateFields[m].getAttribute("placeholder");
+
+							switch(dateType){
+								case "MM":
+									if(validationDateFields[m].value && !/^([0]?[1-9]|1[012])$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "DD":
+									if(validationDateFields[m].value && !/^([0]?[1-9]|[12]\d|3[01])$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "YY":
+									if(validationDateFields[m].value && !/^(0?[1-9]|[1-9][0-9])$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "YYYY":
+									if(validationDateFields[m].value && !/^[0-9]{4}$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "h":
+									if(validationDateFields[m].value && !/^([0]?[1-9]|1[012])$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "H":
+									if(validationDateFields[m].value && !/^([0]?[0-9]|1[0-9]|2[0-3])$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+
+								case "mm":
+									if(validationDateFields[m].value && !/^[0-5][0-9]$/.test(validationDateFields[m].value) ){
+										validationDateFields[m].classList.add("ao-form-error");
+										hasErrors = true;
+									} else {
+										validationDateFields[m].classList.remove("ao-form-error");
+									}
+									break;
+							}
+						}
+					}
+					break;
+				case "email":
+					if (field.value && !/^[a-zA-Z0-9]+([\w'._+-])*@[\w-]+\.[\w-.]{2,}$/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+				case "nc_email":
+                    if (field.value && (/^.*@(163[.]com|aol[.]com|bellsouth[.]net|blueyonder[.]co[.][a-z]{2}|btconnect[.]com|charter[.]com|comcast[.]net|cox[.]net|earthlink[.]net|email[.]com|gmail[.]co.[a-z]{2}|gmail[.]com|hotmail[.]co[.][a-z]{2}|hotmail[.]com|juno[.]com|mail[.]com|mail[.]ru|mindspring[.]com|msn[.]com|ntlworld[.]com|orange[.]fr|rogers[.]com|sbcglobal[.]net|shaw[.]ca|sympatico[.]ca|telus[.]net|verizon[.]net|virgin[.]net|virginmedia[.]com|yahoo[.]ca|yahoo[.]co[.][a-z]{2}|yahoo[.]com|ymail[.]com|icloud[.]com|me[.]com|mac[.]com)$/i.test(field.value)
+                        || !/^[a-zA-Z0-9]+([\w'._+-])*@[\w-]+\.[\w.]{2,}$/.test(field.value))) {
+                        hasErrors = true;
+                    }
+                    break;
+                case "ng_email":
+                    if (field.value && (!/^(?!(abuse@|accounting@|accounts@|adm@|admin@|administration@|administrator@|admissions@|ads@|all@|answers@|anti-spam@|antispam@|asdf@|billing@|ceo@|comments@|compliance@|contact@|contactus@|customer@|customercare@|customerservice@|database@|decliend@|decline@|declined@|denied@|designer@|devnull@|director@|dns@|email@|employment@|enquiries@|everyone@|fbl@|feedback@|finance@|ftp@|general@|hello@|helpdesk@|home@|hostmaster@|hr@|info@|information@|inoc@|investorrelations@|ispfeedback@|ispsupport@|jobs@|lawyer@|lawyers@|legal@|list@|list-request@|mail@|mailbox@|mail-daemon@|maildaemon@|mail-deamon@|manager@|managers@|marketing@|me@|media@|mediarelations@|mkt@|news@|noc@|noreplies@|no-reply@|noreply@|noemail@|nospam@|nothanks@|null@|office@|operations@|orders@|phish@|phishing@|post@|postbox@|postmaster@|prepress@|president@|press@|privacy@|purchasing@|qwer@|qwert@|qwerty@|reception@|refuse@|refused@|registrar@|remove@|request@|reservations@|returns@|root@|sales@|secretary@|security@|service@|services@|shop@|spam@|staff@|studio@|subscribe@|support@|sysadmin@|tech@|undisclosed-recipients@|unsubscribe@|usenet@|users@|uucp@|web@|webmaster@|welcome@|www@)).*/i.test(field.value)  || field.value && !/^[a-zA-Z0-9]+([\w'._+-])*@[\w-]+\.[\w.]{2,}$/.test(field.value) ) ){
+                        hasErrors = true;
+                    }
+                    break;
+				case "numeric":
+					if (field.value && !/^\d+$/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+				case "alphabetic":
+					if (field.value && !/^[a-zA-Z]+$/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+				case "alphanumeric":
+					if (field.value && !/^[a-zA-Z0-9]*$/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+				case "minlength":
+					if (field.value && field.value.length < field.getAttribute('data-minlength') || 0) {
+						hasErrors = true;
+					}
+					break;
+				case "maxlength":
+					if (field.value && field.value.length > field.getAttribute('maxlength') || 0) {
+						hasErrors = true;
+					}
+					break;
+                case "minyear":
+                    if(o.isDate) {
+                        var validationDateFields = field.querySelectorAll("input");
+
+                        for (var m = 0; m < validationDateFields.length; m++) {
+                            var dateType = validationDateFields[m].getAttribute("placeholder");
+
+                            switch(dateType){
+                                case "YY":
+                                case "YYYY":
+                                    if(validationDateFields[m].value < field.getAttribute('data-minyear') || 0 ){
+                                        validationDateFields[m].classList.add("ao-form-error");
+                                        hasErrors = true;
+                                    } else {
+                                        validationDateFields[m].classList.remove("ao-form-error");
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+                case "maxyear":
+                    if(o.isDate) {
+                        var validationDateFields = field.querySelectorAll("input");
+
+                        for (var m = 0; m < validationDateFields.length; m++) {
+                            var dateType = validationDateFields[m].getAttribute("placeholder");
+
+                            switch(dateType){
+                                case "YY":
+                                case "YYYY":
+                                    if(validationDateFields[m].value > field.getAttribute('data-maxyear') || 0 ){
+                                        validationDateFields[m].classList.add("ao-form-error");
+                                        hasErrors = true;
+                                    } else {
+                                        validationDateFields[m].classList.remove("ao-form-error");
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+				case "match":
+					if (field.value != document.getElementById(field.getAttribute('data-match') ).value ) {
+						hasErrors = true;
+					}
+					break;
+				case "phoneus":
+					if(field.value && !/^(\+?1?)?(-?\s?\.?)?(\([2-9]([02-9]\d|1[02-9])\)|[2-9]([02-9]\d|1[02-9]))-?\s?\.?[2-9]([0-9]{2})\s?-?\.?\d{4}$/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+                case "phoneint":
+                    if(field.value && !/^\+(?:[0-9] ?){6,14}[0-9]$/.test(field.value)) {
+                        hasErrors = true;
+                    }
+                case "phoneall":
+                    if(field.value && !/(^(\+?1?)?(-?\s?\.?)?(\([2-9]([02-9]\d|1[02-9])\)|[2-9]([02-9]\d|1[02-9]))-?\s?\.?[2-9]([0-9]{2})\s?-?\.?\d{4}$)|(^\+(?:[0-9] ?){6,14}[0-9]$)/.test(field.value)) {
+                        hasErrors = true;
+                    }
+                    break;
+				case "url":
+					if(field.value && !/(http|ftp|https):\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:/~+#-]*[\w@?^=%&amp;/~+#-])?/.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+				case "custom":
+					var pattern = new RegExp(field.getAttribute('data-custom'));
+
+					if (field.value && !pattern.test(field.value)) {
+						hasErrors = true;
+					}
+					break;
+			}
+
+			if (hasErrors){
+				if(! o.isDate)
+					field.classList.add("ao-form-error");
+
+				errorSpan.innerHTML = ( errorMessageArr[validationType] ) ? errorMessageArr[validationType] : "Invalid";
+
+				return false;
+			}
+		}
+
+		return true;
+	};
+
+    function debounce(a,b,c){var d;return function(){var e=this,f=arguments;clearTimeout(d),d=setTimeout(function(){d=null,c||a.apply(e,f)},b),c&&!d&&a.apply(e,f)}}
+
+	return {
+		load: function(opts) {
+			loadForm(opts);
+		},
+		loadAll: function(){
+			for(var i=0; i<w._aoForms.length; i++){
+				loadForm(w._aoForms[i]);
+			}
+		}
+	};
+
+}(window));
+
+/*** FormData for older browsers ***/
+(function(w) {
+    if (w.FormData)
+        return;
+    function FormData() {
+        this.fake = true;
+        this.boundary = "--------FormData" + Math.random();
+        this._fields = [];
+    }
+    FormData.prototype.append = function(key, value) {
+        this._fields.push([key, value]);
+    }
+    FormData.prototype.toString = function() {
+        var boundary = this.boundary;
+        var body = "";
+        this._fields.forEach(function(field) {
+            body += "--" + boundary + "\r\n";
+            // file upload
+            if (field[1].name) {
+                var file = field[1];
+                body += "Content-Disposition: form-data; name=\""+ field[0] +"\"; filename=\""+ file.name +"\"\r\n";
+                body += "Content-Type: "+ file.type +"\r\n\r\n";
+                body += file.getAsBinary() + "\r\n";
+            } else {
+                body += "Content-Disposition: form-data; name=\""+ field[0] +"\";\r\n\r\n";
+                body += field[1] + "\r\n";
+            }
+        });
+        body += "--" + boundary +"--";
+        return body;
+    }
+    w.FormData = FormData;
+})(window);

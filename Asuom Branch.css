@@ -1,0 +1,238 @@
+*
+{
+     padding: 0;
+     margin: 0;
+     box-sizing: border-box;}
+
+img {transition: all 1s;}
+img:hover {transform: scale(1.1);}
+.search-from{
+    width: auto;
+    }
+    
+    input[type=submit]{
+        color: #fff;
+        font-family: arial;
+        text-shadow: 0 0 1px #000;
+        cursor: pointer;
+        font-size: 15px;
+        background:linear-gradient(#00adee,#0078)
+    }
+
+
+
+.Marquee {color: whitesmoke;}
+th {background-color:yellowgreen;
+    text-emphasis-color: black;font-size: larger;font-weight: bolder;font-style: italic;}
+td {font-size: larger;font-weight: lighter;}
+
+
+h1 {color:chocolate;
+    font-size: xx-large;
+    font-weight: bolder;
+    font-variant: initial;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-variant: initial;
+    font-stretch: wider;
+    background-color:yellowgreen;}
+
+.X {text-align: left;font-size: large;font-weight: bold;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    font-style: italic;margin-left: 20px;margin-right: 50px;}
+
+h3  {color:chocolate;
+    font-size: xx-large;
+    font-weight: bolder;
+    font-variant: initial;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-variant: initial;
+    font-stretch: wider;
+    background-color:yellowgreen;text-align: center;}
+
+.OJ {text-align: left;font-size: large;font-weight: bold;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    font-style: italic;margin-left: 20px;margin-right: 50px;}
+
+h4  {font-style: italic;
+    font-size: larger;
+    font-weight: bold;color: chocolate;}
+h5  {font-style: italic;
+    font-size: larger;
+    font-weight: bold;}
+h6  {background-color: teal;
+     border: 2px solid black;
+     font-style: italic;
+    font-size: larger;
+    font-weight: bold;}
+body {background-color:white;
+}
+.gh {color:yellowgreen;
+background-color: red;
+}
+.SO {text-align: center;}
+.GO {text-align: center;}
+
+.ER {color:chocolate;
+    font-size: xx-large;
+    font-weight: bolder;
+    font-variant: initial;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-variant: initial;
+    font-stretch: wider;
+    background-color:yellowgreen;margin-left: 20px;}
+.SA {font-size: larger;font-weight: bolder;font-style: italic;margin-left: 20px;}
+.JI {font-size: larger;font-weight: bolder;font-style: italic;margin-left: 20px;}
+.YU {text-align: right;}
+
+
+.G {color:chocolate;
+    font-size: xx-large;
+    font-weight: bolder;
+    font-variant: initial;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-variant: initial;
+    font-stretch: wider;
+    background-color:yellowgreen;text-align: left;margin-left: 20px;}
+.N {text-align: left;}
+.O {text-align: left;}
+.V {color: blue;}
+#Y {text-align: center;}
+.DC {text-align: left;font-size: large;font-weight: bold;font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+font-style: italic;margin-right: 400px;margin-left: 200px;}
+.H {color: coral;}
+.R {color: darkgreen;}
+
+/* slider code */
+@keyframes slider{
+    0%{
+        left: 0;
+      }
+     20%{left: 0;
+      }
+  
+     25%{left: -100%;}
+     45%{left: -100%;}
+     50%{left: -200%;}
+    70%{left: -300%;}
+     75%{left: -300%;}
+      95%{left: -300%;}
+     100%{left: 400%;}
+  
+  }
+  #slider
+  {overflow: hidden;}
+  
+  #slider figure img{ width: 20%;
+  float: left;}
+  
+  #slider figure
+  {position: relative;
+      width: 500%;
+      margin: 0;
+      text-align: left;
+      font-size: 0;
+      animation: 10s slider;}
+
+
+
+      .menu-bar{
+        background-image: url(images/SU.jpg);
+        height: 29em;
+    width: auto;
+    text-align: right;
+    padding: 20px;
+}
+    .menu-bar ul{
+            display: inline-flex;
+            list-style: none;
+            color: black;
+    }
+    .menu-bar ul li{
+        width: 120px;
+        margin: 15px;
+        padding: 15px;
+    }
+    .menu-bar ul li a{
+        text-decoration: none;font-style: italic;
+        color: black;font-weight: bold;font-family: Georgia, 'Times New Roman', Times, serif;
+    }
+    .it, .menu-bar ul li:hover {
+        background: yellow;
+        border-radius: 3px;   
+    }
+    .it {height: 70px;}
+    
+    
+    .menu-bar .fa{
+        margin-right: 8px;
+    }
+    .sub-menu-1{
+        display: none;
+    }
+    .menu-bar ul li:hover .sub-menu-1{
+        display: block;
+        position: absolute;
+        background: yellowgreen;
+        margin-top: 15px;
+        margin-left: 15px;
+    }
+    .menu-bar ul li:hover .sub-menu-1 ul{
+        display: block;
+        margin: 10px;
+    }
+    .menu-bar ul li:hover .sub-menu-1 li{
+        width: 150px;
+        padding: 10px;
+        border-bottom: 1px dotted #fff;
+        background: transparent;
+        border-radius: 0;
+        text-align: left;
+    }
+    .menu-bar ul li:hover .sub-menu-1 li:last-child{
+        border-bottom: none;
+    }
+    .menu-bar ul li:hover .sub-menu-1 li a:hover{
+        color: yellow;
+    }
+    .fa-angle-right{
+        float: right;
+    }
+    .sub-menu-2{
+        display: none;
+        
+    }
+    .hover-me:hover .sub-menu-2{
+        position: absolute;
+        display: block;
+        margin-top: -40px;
+        margin-left: 140px;
+        background: yellowgreen;
+    }
+.big {font-size: 1.4em;}
+.Q {color: green;font-family: Georgia, 'Times New Roman', Times, serif;font-style: italic;}
+#OB {font-size: 2em;}
+h2 {color:green;
+    font-size: 2em;
+    font-weight: bolder;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-stretch: wider;
+    text-align: left;}
+
+    .Kwae {font-size: 5em;color: whitesmoke;font-weight: bold;font-style: italic;
+        font-family: Georgia, 'Times New Roman', Times, serif;}
+    
+    .Ek {font-size: 2em;color: whitesmoke;margin-left: 1000px;font-weight: bold;font-style: italic;
+        font-family: Georgia, 'Times New Roman', Times, serif;}
+
+
+        a {font-size: medium;
+            font-weight: bolder;
+            font-family: Arial, Helvetica, sans-serif;
+            font-variant: inherit;
+            padding: 5px;}
+    

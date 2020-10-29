@@ -1,0 +1,161 @@
+/* global jQuery, nfRadio */
+( function ( $ ) {
+
+	// Create a proxy form to cookie the user and send the data to Act-On
+	function AoProcessForm( data ) {
+		if ( data.aid && data.fid && data.did && data.server && data.postData ) {
+			let d = document,
+				bi = function ( i ) {
+					return d.getElementById( i );
+				},
+				names = [],
+				values = [],
+				params = {},
+				w = window,
+				isLoaded = false,
+				st = function ( f, i ) {
+					w.setTimeout( f, i );
+				},
+				ce = function ( t ) {
+					return d.createElement( t );
+				},
+				gid = function ( p ) {
+					let j = null,
+						i = 0,
+						n = Math.random,
+						r = [],
+						c = '0123456789abcdef'.split( '' );
+					for ( ; i < 16; i++ ) {
+						r[i] = c[ ( 0 | n() * 16 ) & 0xf ];
+					}
+					j = p + r.join( '' );
+					return bi( j ) === null ? j : gid( p );
+				},
+				addInput = function ( form, name, value ) {
+					const el = ce( 'input' );
+					el.name = name;
+					el.value = value;
+					form.appendChild( el );
+				},
+				idifr = gid( 'aoCapT' );
+
+			const dTarget = ce( 'div' );
+			dTarget.style.display = 'none';
+			d.body.appendChild( dTarget );
+			dTarget.innerHTML = '<iframe name="' + idifr + '" id="' + idifr + '"></iframe>'; // generate iframe
+
+			let dForm = ce( 'form' ),
+				idform = gid( 'aoCapD' );
+
+			dForm.id = idform;
+			dForm.style.display = 'none';
+			dForm.method = 'POST';
+			dForm.enctype = 'multipart/form-data';
+			dForm.acceptCharset = 'UTF-8';
+			dForm.target = idifr; // form targets iframe
+			dForm.action = ( data.protocol || w.location.protocol ) + '//' + data.server + '/acton/forms/userSubmit.jsp';
+			d.body.appendChild( dForm ); // generate form
+
+			for ( const prop in data.postData ) {
+				if ( data.postData.hasOwnProperty( prop ) ) {
+					let val = data.postData[ prop ];
+					names.push( prop );
+					values.push( val );
+					params[ prop ] = val;
+					addInput( dForm, prop, val );
+				}
+			}
+
+			data.pid = 0;
+			data.cuid = data.cuid || '';
+			data.srcid = data.srcid || '';
+			data.camp = data.camp || '';
+			addInput( dForm, 'ao_a', data.aid );
+			addInput( dForm, 'ao_f', data.fid );
+			addInput( dForm, 'ao_d', data.fid + ':' + data.did );
+			addInput( dForm, 'ao_p', 0 );
+			addInput( dForm, 'ao_jstzo', new Date().getTimezoneOffset() );
+			addInput( dForm, 'ao_form_neg_cap', '' );
+			addInput( dForm, 'ao_refurl', d.referrer );
+			addInput( dForm, 'ao_cuid', data.cuid );
+			addInput( dForm, 'ao_srcid', data.srcid );
+			addInput( dForm, 'ao_camp', data.camp );
+			bi( idform ).submit();
+
+			let dTargetFrame = bi( idifr );
+			dTargetFrame.onload = function () {
+				isLoaded = true;
+			};
+			let waitForSubmit = function () {
+				this.count = '';
+				if ( ! ( isLoaded || dTargetFrame.readyState === 'complete' ) ) {
+					st( waitForSubmit, 200 );
+					this.count++;
+				} else if ( this.count > 7 ) {
+					return true;
+				} else {
+					d.body.removeChild( dForm );
+					d.body.removeChild( dTarget );
+				}
+			};
+
+			st( waitForSubmit, 100 );
+		}
+	}
+
+	$( document ).on( 'nfFormReady', function () {
+		nfRadio.channel( 'forms' ).on( 'submit:response', function ( form ) {
+
+			if ( form.data.settings.wrapper_class === 'gated-gate' || form.data.settings.wrapper_class === 'cta-gate' ) {
+
+				// prepare the data
+				let aoProtocol = location.protocol;
+				if ( aoProtocol.indexOf( 'http' ) < 0 ) {
+					aoProtocol = 'http:';
+				}
+				let aoCAP = {
+					aid:      '32585',
+					server:   'globalcommunications.sc.com',
+					protocol: aoProtocol,
+					postData: {
+						form_id: form.data.form_id,
+						title:   form.data.settings.title,
+						email:   '',
+					},
+				};
+
+				if ( form.data.settings.wrapper_class === 'gated-gate' ) {
+					aoCAP.fid = '0001';
+					aoCAP.did = 'd-0001';
+				}
+
+				if ( form.data.settings.wrapper_class === 'cta-gate' ) {
+					aoCAP.fid = '0004';
+					aoCAP.did = 'd-0001';
+				}
+
+				// find the email value
+				$.each( form.data.fields, function ( k, field ) {
+					if ( field.type === 'email' ) {
+						aoCAP.postData.email = field.value;
+					}
+
+					let _key = field.key;
+					if ( _key.indexOf( 'hidden_file_url' ) !== -1 ) {
+						aoCAP.postData.download_url = field.value;
+					}
+					if ( _key.indexOf( 'hidden_file_name' ) !== -1 ) {
+						aoCAP.postData.download_name = field.value;
+					}
+				} );
+
+				// check we have the email before proceeding
+				if ( aoCAP.postData.email !== '' ) {
+					$( '.cta-form-show .ao-form input[name="email"]' ).val( aoCAP.postData.email );
+					AoProcessForm( aoCAP );
+				}
+			}
+		} );
+	} );
+
+} )( jQuery );

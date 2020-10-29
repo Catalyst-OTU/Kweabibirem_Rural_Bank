@@ -1,0 +1,261 @@
+*
+{
+padding: 0;
+margin: 0;
+box-sizing: border-box;
+}
+
+
+
+html, body, div, span, applet, object, iframe,
+    h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+    a, abbr, acronym, address, big, cite, code,
+    del, dfn, em, img, ins, kbd, q, s, samp,
+    small, strike, strong, sub, sup, tt, var,
+    b, u, i, center,
+    dl, dt, dd, ol, ul, li,
+    fieldset, form, label, legend,
+    table, caption, tbody, tfoot, thead, tr, th, td,
+    article, aside, canvas, details, embed, 
+    figure, figcaption, footer, header, hgroup, 
+    menu, nav, output, ruby, section, summary,
+    time, mark, audio, video {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font-size: 100%;
+        font: inherit;
+        vertical-align: baseline;
+        box-sizing: border-box;
+        scroll-behavior: smooth;
+        
+        
+    }
+
+
+
+    
+
+
+     #Y {text-align: center;}
+     .ta{text-align: center;font-style: italic;font-weight: bolder;}
+     .search-from{
+        width: auto;
+        }
+        
+        input[type=submit]{
+            color: #fff;
+            font-family: arial;
+            text-shadow: 0 0 1px #000;
+            cursor: pointer;
+            font-size: 15px;
+            background:linear-gradient(#00adee,#0078)
+        }
+
+     .KO {font-size: 5em;
+        color: green;
+        font-weight: bold;text-align: center;}
+.Marquee {color: whitesmoke;font-size: larger;}
+.OJ {background-color:yellowgreen;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;
+     font-size: 2em;}
+h1  {background-color:whitesmoke;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;
+font-size: 1.5em;}
+
+
+
+h3  {background-color:yellowgreen;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;
+font-size: 1.5em;}
+h4  {background-color:whitesmoke;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;}
+h5  {background-color:yellowgreen;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;
+    font-size: 2em;}
+h6  {background-color:whitesmoke;
+    text-emphasis-color: black;
+    font-weight: bolder;
+    font-variant: initial;
+    font-style: italic;
+    font-size: large;}
+
+
+
+.menu-bar{
+    background-image: url(images/SU.jpg);
+    height: 36.3em;
+width: auto;
+text-align: right;
+padding: 20px;}
+
+.menu-bar ul{
+        display: inline-flex;
+        list-style: none;
+        color: black;
+}
+.menu-bar ul li{
+    width: 120px;
+    margin: 15px;
+    padding: 15px;
+    
+}
+
+.menu-bar ul li a{
+    text-decoration: none;font-style: italic;
+    color: black;font-weight: bold;font-family: Georgia, 'Times New Roman', Times, serif;
+}
+.it, .menu-bar ul li:hover {
+    background: yellow;
+    border-radius: 3px; 
+}
+.it {height: 70px;}
+
+.menu-bar .fa{
+    margin-right: 8px;
+}
+.sub-menu-1{
+    display: none;
+}
+.menu-bar ul li:hover .sub-menu-1{
+    display: block;
+    position: absolute;
+    background: yellowgreen;
+    margin-top: 15px;
+    margin-left: 15px;
+}
+.menu-bar ul li:hover .sub-menu-1 ul{
+    display: block;
+    margin: 10px;
+}
+.menu-bar ul li:hover .sub-menu-1 li{
+    width: 150px;
+    padding: 10px;
+    border-bottom: 1px dotted #fff;
+    background: transparent;
+    border-radius: 0;
+    text-align: left;
+}
+
+.im {font-size: large;font-weight: bold;}
+.menu-bar ul li:hover .sub-menu-1 li:last-child{
+    border-bottom: none;
+}
+.menu-bar ul li:hover .sub-menu-1 li a:hover{
+    color: yellow;
+}
+.fa-angle-right{
+    float: right;
+}
+.sub-menu-2{
+    display: none;
+    
+}
+.hover-me:hover .sub-menu-2{
+    position: absolute;
+    display: block;
+    margin-top: -40px;
+    margin-left: 140px;
+    background: yellowgreen;
+}
+
+.big {font-size: 1.4em;}
+h2 {color:green;
+    font-size: 2.8em;
+    font-weight: bolder;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-stretch: wider;
+    text-align: left;}
+    #OB {font-size: 2.5em;}
+
+    body {background-color: whitesmoke;}
+
+    a {font-size: medium;
+        font-weight: bolder;
+        font-family: Arial, Helvetica, sans-serif;
+        font-variant: inherit;
+        padding: 5px;
+}
+
+
+
+
+.social-coins{
+    margin-right: 50px;
+    text-align: right;
+}
+.social-coins img{
+width: 30px;
+margin: 0 6px;
+box-shadow: 0 0 20px 0 #7f7f7f3d;
+cursor: pointer;
+border-radius: 50%;
+}
+
+
+.customer-service{
+    margin-left: 30px;
+}
+
+.customer-service>ul li{
+    list-style: none;
+}
+
+.customer-service>ul li a{
+    color: white;
+}
+
+.serv{
+    font-size: 30px;
+}
+
+footer>ul a{
+    color: black;
+}
+
+
+a {font-size: medium;
+    font-weight: bolder;
+    font-family: Arial, Helvetica, sans-serif;
+    font-variant: inherit;
+    padding: 5px;
+}
+
+.comments{
+    margin-left: 50px;
+}
+
+
+footer{
+    background-color: teal;
+    font-size: 20px;
+}
+
+.League{
+    color: green;
+    margin-right: 30px;
+    font-size: 20px;
+}
+
+
+.League1{
+color: white;
+margin-right: 30px;
+font-size: 20px;
+}
